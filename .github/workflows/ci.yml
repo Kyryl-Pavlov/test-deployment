@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-test-deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run Tests
+      run: |
+        pytest test_app.py
+        
+    - name: Build Image
+      run: |
+        docker build -t kyryl2b/web-app:latest .
+
+
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Deploy
+      run: |
+        # Inject the secret from GitHub Secrets (or your .secrets file when using act)
+        kubectl create secret generic mysql-secret --from-literal=DB_PASSWORD=${{ secrets.DB_PASSWORD }} --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Deploy the manifests
+        kubectl apply -f k8s/
